@@ -3,7 +3,7 @@ var scene, camera, renderer, clock, deltaTime, totalTime;
 
 var arToolkitSource, arToolkitContext;
 
-var mesh1, mesh2;
+var mesh1, mesh2, isMesh;
 
 var markerRoot1, markerRoot2, markerRoot3, markerRoot4;
 
@@ -11,7 +11,7 @@ var RhinoMesh, RhinoMesh2, RhinoMesh3, RhinoMesh4;
 
 var raycaster; //permite apuntar o detectar objetos en nuestra aplicación
 
-var mouse = THREE.Vector2();
+var mouse = new THREE.Vector2();
 
 var INTERSECTED; //guarda info sobre los objetos intersectados por mi raycast
 
@@ -20,10 +20,12 @@ var objects = []; //guarda los bojectos que quiero detectar
 var sprite1; // variable para label
 var canvas1, context1, texture1; //variables para la creacion de label
 
+
 //////////////////FUNCIONES///////////////////////////////////
 
 //función principal//
 function main() {
+    console.log("se está ejecutando");
     init();
     animate();
 }
@@ -61,8 +63,8 @@ function init() {
     let light = new THREE.PointLight(0xffffff, 1, 100); //creo nueva luz 
     light.position.set(0, 4, 4); //indico la posicion de la luz 
     light.castShadow = true; //activo la capacidad de generar sombras.
-    light.castShadow.mapSize.width = 4096; //resolucion de mapa de sombra
-    light.castShadow.mapSize.height = 4096; //resolucion de mapa de sombra
+    light.shadow.mapSize.width = 4096; //resolucion de mapa de sombra
+    light.shadow.mapSize.height = 4096; //resolucion de mapa de sombra
 
     lightSphere.position.copy(light);
 
@@ -139,24 +141,61 @@ function init() {
     })
 
     //////OBJETO RHINO 1///////////////
-    new THREE.MTLLoader()
-        .setPath('data/models/')
-        .load('creeper.mtl', function (materials) {
-            materials.preload();
-            new THREE.OBJLoader()
-                .setMaterials(materials)
-                .setPath('data/models/')
-                .load('creeper.obj', function (group) {
-                    RhinoMesh = group.children[0];
-                    RhinoMesh.material.side = THREE.DoubleSide;
-                    RhinoMesh.scale.set(0.01, 0.01, 0.01);
-                    RhinoMesh.castShadow = true;
-                    RhinoMesh.receiveShadow = true;
-                    RhinoMesh.position.set(0, 0, 0);
-                    RhinoMesh.name = "Te voy a comer, graur"
+    // new THREE.MTLLoader()
+    //     .setPath('data/models/')
+    //     .load('creeper.mtl', function (materials) {
+    //         materials.preload();
+    //         new THREE.OBJLoader()
+    //             .setMaterials(materials)
+    //             .setPath('data/models/')
+    //             .load('creeper.obj', function (group) {
+    //                 RhinoMesh = group.children[0];
+    //                 RhinoMesh.material.side = THREE.DoubleSide;
+    //                 RhinoMesh.scale.set(0.01, 0.01, 0.01);
+    //                 RhinoMesh.castShadow = true;
+    //                 RhinoMesh.receiveShadow = true;
+    //                 RhinoMesh.position.set(0, 0, 0);
+    //                 RhinoMesh.name = "Te voy a comer, graur"
 
-                }, onProgress, onError);
-        });
+    //             }, onProgress, onError);
+    //     });
+
+
+    // Modelo de fusion
+    var loader = new THREE.FBXLoader();
+    console.log(loader);
+    loader.load( './data/models/baseZorro.fbx', function ( object ) {
+
+        mixer = new THREE.AnimationMixer( object );
+
+        var action = mixer.clipAction( object.animations[ 0 ] );
+        action.play();
+
+        object.traverse( function ( child ) {
+
+            if ( child.isMesh ) {
+
+                child.castShadow = true;
+                child.receiveShadow = true;
+
+            }
+
+        } );
+
+        scene.add( object );
+
+    } );
+
+    // var loader = new Rhino3dmLoader();
+	// 			loader.setLibraryPath( 'jsm/libs/rhino3dm/' );
+
+	// 			loader.load( 'models/3dm/Rhino_Logo.3dm', function ( object ) {
+
+	// 				scene.add( object );
+	// 				initGUI( object.userData.layers );
+
+	// 			} );
+
 
     /////CREACIÓN ELEMENTO TEXTO////////
     //Canvas
@@ -167,7 +206,7 @@ function init() {
     context1.fillText("Hello", 0, 1);
 
     //Los contenidos del canvas serán usados como textura
-    texture1 = new TRHEE.Texture(canvas1);
+    texture1 = new THREE.Texture(canvas1);
     texture1.needsUpdate = true;
 
 
@@ -182,10 +221,10 @@ function init() {
     ////////////AGREGAMOS OBJETOS A ESCENA Y ARRAY OBJECTS////////////
 
     //Agregamos objetos a detectar nuestro array objects
-    objects.push(RhinoMesh);
+    objects.push(isMesh);
 
     //Agregamos nuestros objetos a la escena miedante el objeto marker1
-    markerRoot1.add(RhinoMesh);
+    markerRoot1.add(baseZorro);
     markerRoot1.add(sprite1);
 
 
@@ -204,11 +243,13 @@ function onDocumentMouseMove(event) {
     sprite1.renderOrder = 999;
     sprite1.onBeforeRender = function(renderer){renderer.clearDepth();}
 
-
+    console.log(mouse);
     mouse.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1); //Mouse POS
 
     raycaster.setFromCamera(mouse, camera); //creo el rayo que va desde la cámara, pasa por el frustrum
     let intersects = raycaster.intersectObjects(objects, true); //Buscamos las intersecciones
+    
+
 
     if (intersects.lenght > 0) {
         if (intersects[0].object != INTERSECTED) {
